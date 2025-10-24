@@ -51,14 +51,24 @@ TEMPLATES = [
 
 ASGI_APPLICATION = 'ppb_project.asgi.application'
 
+# Channel Layers Configuration
+# For development: using in-memory backend (no Redis required)
+# For production with Redis 5.0+: use RedisChannelLayer
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
+
+# If you have Redis 5.0+ installed, you can use this instead:
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],
+#         },
+#     },
+# }
 
 DATABASES = {
     'default': {
