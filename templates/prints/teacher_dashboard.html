@@ -148,19 +148,32 @@ PrintBoard{% endblock %} {% block content %}
   // WebSocket connection for teacher notifications
   const userId = {{ user.id }};
   const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const socket = new WebSocket(wsScheme + '://' + window.location.host + '/ws/notifications/teacher/' + userId + '/');
+  const wsUrl = wsScheme + '://' + window.location.host + '/ws/notifications/teacher/' + userId + '/';
+  console.log('Connecting to WebSocket:', wsUrl);
+
+  const socket = new WebSocket(wsUrl);
+
+  socket.onopen = function(e) {
+    console.log('✅ WebSocket connected successfully');
+  };
 
   socket.onmessage = function(e) {
+      console.log('📨 Message received:', e.data);
       const data = JSON.parse(e.data);
 
       if (data.type === 'request_printed') {
+          console.log('🔔 Print complete notification:', data);
           showNotification('Print Complete!', `Your file "${data.filename}" has been printed.`, 'success');
           setTimeout(() => location.reload(), 2000);
       }
   };
 
+  socket.onerror = function(error) {
+    console.error('❌ WebSocket error:', error);
+  };
+
   socket.onclose = function(e) {
-      console.error('WebSocket closed unexpectedly');
+      console.error('🔌 WebSocket closed:', e.code, e.reason);
   };
 
   function showNotification(title, message, type) {
