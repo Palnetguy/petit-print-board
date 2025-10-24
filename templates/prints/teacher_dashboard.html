@@ -1,0 +1,189 @@
+{% extends 'base.html' %} {% block title %}Teacher Dashboard - Petit
+PrintBoard{% endblock %} {% block content %}
+<div class="row mb-4">
+  <div class="col-12">
+    <h2 class="mb-4">
+      <i class="fas fa-graduation-cap me-2"></i>Teacher Dashboard
+    </h2>
+  </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+  <div class="col-md-6 mb-3">
+    <div class="stat-card pending">
+      <div class="icon">
+        <i class="fas fa-clock"></i>
+      </div>
+      <h3>{{ pending_count }}</h3>
+      <p>Pending Requests</p>
+    </div>
+  </div>
+
+  <div class="col-md-6 mb-3">
+    <div class="stat-card printed">
+      <div class="icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h3>{{ printed_count }}</h3>
+      <p>Printed Requests</p>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Form -->
+<div class="table-container">
+  <h3 class="table-title">
+    <i class="fas fa-upload me-2"></i>Submit New Print Request
+  </h3>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.file.id_for_label }}" class="form-label">
+          <i class="fas fa-file me-2"></i>File (PDF, DOC, DOCX, TXT)
+        </label>
+        {{ form.file }} {% if form.file.errors %}
+        <div class="text-danger small mt-1">{{ form.file.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.deadline.id_for_label }}" class="form-label">
+          <i class="fas fa-calendar-alt me-2"></i>Deadline
+        </label>
+        {{ form.deadline }} {% if form.deadline.errors %}
+        <div class="text-danger small mt-1">{{ form.deadline.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.copies.id_for_label }}" class="form-label">
+          <i class="fas fa-copy me-2"></i>Number of Copies (1-50)
+        </label>
+        {{ form.copies }} {% if form.copies.errors %}
+        <div class="text-danger small mt-1">{{ form.copies.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <label for="{{ form.notes.id_for_label }}" class="form-label">
+          <i class="fas fa-sticky-note me-2"></i>Notes (Optional)
+        </label>
+        {{ form.notes }} {% if form.notes.errors %}
+        <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-paper-plane me-2"></i>Submit Request
+    </button>
+  </form>
+</div>
+
+<!-- Request History -->
+<div class="table-container">
+  <h3 class="table-title">
+    <i class="fas fa-history me-2"></i>My Print Requests
+  </h3>
+
+  {% if requests %}
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>File Name</th>
+          <th>Deadline</th>
+          <th>Copies</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for request in requests %}
+        <tr>
+          <td><i class="fas fa-file-pdf me-2"></i>{{ request.filename }}</td>
+          <td>{{ request.deadline|date:"M d, Y H:i" }}</td>
+          <td>{{ request.copies }}</td>
+          <td>
+            {% if request.status == 'pending' %}
+            <span class="badge badge-pending">
+              <i class="fas fa-clock me-1"></i>Pending
+            </span>
+            {% else %}
+            <span class="badge badge-printed">
+              <i class="fas fa-check me-1"></i>Printed
+            </span>
+            {% endif %}
+          </td>
+          <td>{{ request.created_at|date:"M d, Y H:i" }}</td>
+          <td>
+            <a
+              href="{% url 'download_file' request.id %}"
+              class="btn btn-sm btn-primary"
+            >
+              <i class="fas fa-download"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted text-center py-4">
+    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+    No print requests yet. Submit your first request above!
+  </p>
+  {% endif %}
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  // WebSocket connection for teacher notifications
+  const userId = {{ user.id }};
+  const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const socket = new WebSocket(wsScheme + '://' + window.location.host + '/ws/notifications/teacher/' + userId + '/');
+
+  socket.onmessage = function(e) {
+      const data = JSON.parse(e.data);
+
+      if (data.type === 'request_printed') {
+          showNotification('Print Complete!', `Your file "${data.filename}" has been printed.`, 'success');
+          setTimeout(() => location.reload(), 2000);
+      }
+  };
+
+  socket.onclose = function(e) {
+      console.error('WebSocket closed unexpectedly');
+  };
+
+  function showNotification(title, message, type) {
+      const container = document.getElementById('notificationContainer');
+      const notification = document.createElement('div');
+      notification.className = 'notification-popup show';
+      notification.innerHTML = `
+          <div class="icon text-${type === 'success' ? 'success' : 'primary'}">
+              <i class="fas fa-${type === 'success' ? 'check-circle' : 'bell'}"></i>
+          </div>
+          <h5 class="mb-2">${title}</h5>
+          <p class="mb-0">${message}</p>
+      `;
+      container.appendChild(notification);
+
+      // Play notification sound
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBCd+zPDTgjMGHm7A7+OZUQ4SV7Dm67ViFg5HnuH1wG8iBS1+0O/gkj4KF2S56OmfUhALT6Pj8bhnHQU2jdXpyHkqBSt2xu/ijz0KF2K25+afWRALUabg77hjHgU3kdTux3ksBChzxe/ijz0KGGa65OalXBALUKDd77hmHwU8kdTuxXgpBSZ0xO/hizsKGGK15+adWhALU6Hc77hoHwU7k9Puw3YoBSZ0w+/ijz4KGmW75+adWhAMUqHc8LdoHgU7lNTww3YpBSh1w/DijzsJGGS75OamXBELU6Da8bdnHgU7ktPww3YpBSZ1xO/hizsJGWW75+emXRENUqDa8LdoHgQ7k9Tvw3YqBSZ0w+7gizsJGGS85Oamv4DB');
+      audio.volume = 0.3;
+      audio.play().catch(() => {});
+
+      setTimeout(() => {
+          notification.remove();
+      }, 5000);
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,17 @@
+[Unit]
+Description=Petit PrintBoard Django Application
+After=network.target redis.service
+Requires=redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/ppb
+Environment="PATH=/opt/ppb/venv/bin"
+ExecStart=/opt/ppb/venv/bin/daphne -b 0.0.0.0 -p 8000 ppb_project.asgi:application
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
